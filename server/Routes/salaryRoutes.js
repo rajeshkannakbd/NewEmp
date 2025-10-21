@@ -10,21 +10,9 @@ router.post("/calculate", async (req, res) => {
     const { employeeId, weekStart, weekEnd } = req.body;
 
     const employee = await Employee.findById(employeeId);
-    // console.log(employee);
     if (!employee) return res.status(404).json({ error: "Employee not found" });
 
-    // find attendance records in that week
-    // const attendanceRecords = await Attendance.find({
-    //   employeeId,
-    //   date: { $gte: new Date(weekStart), $lte: new Date(weekEnd) },
-    // });
-
-    // // count "Present" shifts (case-insensitive)
-    // const totalShifts = attendanceRecords.reduce((sum, record) => {
-    //   const shift1Present = record.shift1?.toLowerCase() === "present" ? 1 : 0;
-    //   const shift2Present = record.shift2?.toLowerCase() === "present" ? 1 : 0;
-    //   return sum + shift1Present + shift2Present;
-    // }, 0);
+    // 🗓️ Find attendance within date range
     const attendanceRecords = await Attendance.find({
       employeeId,
       date: {
@@ -32,21 +20,22 @@ router.post("/calculate", async (req, res) => {
         $lte: new Date(new Date(weekEnd).setHours(23, 59, 59, 999)),
       },
     });
-     
+
     console.log("attendanceRecords found:", attendanceRecords);
 
+    // 💰 Calculate total shifts (Shift1 = full rate, Shift2 = half rate)
     const totalShifts = attendanceRecords.reduce((sum, record) => {
       const shift1Present =
         record.shift1?.toLowerCase().trim() === "present" ? 1 : 0;
       const shift2Present =
-        record.shift2?.toLowerCase().trim() === "present" ? 1 : 0;
+        record.shift2?.toLowerCase().trim() === "present" ? 0.5 : 0;
       return sum + shift1Present + shift2Present;
     }, 0);
 
-    console.log(totalShifts);
-
+    // 💵 Calculate total salary
     const totalSalary = totalShifts * employee.shiftRate;
-    console.log(totalSalary);
+
+    // 🧾 Save the salary record
     const salary = new Salary({
       employeeId,
       weekStart,
@@ -57,12 +46,13 @@ router.post("/calculate", async (req, res) => {
 
     await salary.save();
     res.json(salary);
-    console.log(salary);
+    console.log("Salary saved:", salary);
   } catch (err) {
     console.error("Salary calculation error:", err);
     res.status(400).json({ error: err.message });
   }
 });
+
 
 // 👀 Get salary history (with employee info)
 router.get("/", async (req, res) => {
