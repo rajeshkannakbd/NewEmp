@@ -7,7 +7,7 @@ export default function EmployeePage() {
   const [editId, setEditId] = useState(null);
 
   const loadEmployees = async () => {
-    const res = await axios.get("http://localhost:3000/api/employees");
+    const res = await axios.get("https://newemployman.onrender.com/api/employees");
     setEmployees(res.data);
   };
 
@@ -16,10 +16,10 @@ export default function EmployeePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (editId) {
-      await axios.put(`http://localhost:3000/api/employees/${editId}`, form);
+      await axios.put(`https://newemployman.onrender.com/api/employees/${editId}`, form);
       setEditId(null);
     } else {
-      await axios.post("http://localhost:3000/api/employees", form);
+      await axios.post("https://newemployman.onrender.com/api/employees", form);
     }
     setForm({ name: "", phone: "", role: "", shiftRate: "" });
     loadEmployees();

@@ -15,7 +15,7 @@ export default function SalaryPage() {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/employees");
+        const res = await axios.get("https://newemployman.onrender.com/api/employees");
         const data = Array.isArray(res.data) ? res.data : res.data.employees;
         setEmployees(data || []);
       } catch (err) {
@@ -43,7 +43,7 @@ export default function SalaryPage() {
 
     try {
       const res = await axios.post(
-        "http://localhost:3000/api/salary/calculate",
+        "https://newemployman.onrender.com/api/salary/calculate",
         payload
       );
       alert(`Salary calculated: ${res.data.totalSalary}`);
@@ -62,7 +62,7 @@ export default function SalaryPage() {
   const fetchSalaryHistory = async (employeeId) => {
     try {
       const res = await axios.get(
-        `http://localhost:3000/api/salary/${employeeId}`
+        `https://newemployman.onrender.com/api/salary/${employeeId}`
       );
       setSalaryData(res.data);
     } catch (err) {
@@ -77,7 +77,7 @@ export default function SalaryPage() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this salary record?")) return;
     try {
-      await axios.delete(`http://localhost:3000/api/salary/${id}`);
+      await axios.delete(`https://newemployman.onrender.com/api/salary/${id}`);
       setSalaryData(salaryData.filter((s) => s._id !== id));
     } catch (err) {
       console.error("Error deleting salary:", err.response?.data || err.message);

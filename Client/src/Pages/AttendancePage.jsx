@@ -13,7 +13,7 @@ export default function AttendancePage() {
 
   // Fetch all employees
   useEffect(() => {
-    axios.get("http://localhost:3000/api/employees")
+    axios.get("https://newemployman.onrender.com/api/employees")
       .then(res => setEmployees(res.data))
       .catch(err => console.error("Error loading employees:", err.message));
   }, []);
@@ -25,7 +25,7 @@ export default function AttendancePage() {
 
   const fetchRecordsForDate = async (date) => {
     try {
-      const res = await axios.get("http://localhost:3000/api/attendance");
+      const res = await axios.get("https://newemployman.onrender.com/api/attendance");
       const filtered = res.data.filter(
         rec => new Date(rec.date).toISOString().split("T")[0] === date
       );
@@ -38,7 +38,7 @@ export default function AttendancePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:3000/api/attendance", attendance);
+      await axios.post("https://newemployman.onrender.com/api/attendance", attendance);
       alert("✅ Attendance saved!");
       fetchRecordsForDate(attendance.date);
     } catch (err) {
