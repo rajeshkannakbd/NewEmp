@@ -13,6 +13,9 @@ const salaryRoutes = require("./Routes/salaryRoutes");
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch(err => console.log(err));
+app.get("/", (req, res) => {
+  res.send("Welcome to the Employment Management API!");
+});
 
 app.use("/api/employees", employeeRoutes);
 app.use("/api/attendance", attendanceRoutes);
