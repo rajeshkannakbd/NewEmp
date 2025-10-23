@@ -1,286 +1,328 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { ThreeDot } from "react-loading-indicators"; // Make sure this package is installed
+import { ThreeDots } from "react-loader-spinner";
+import { API_URL } from "../config";
 
 export default function AttendancePage() {
   const [employees, setEmployees] = useState([]);
-  const [attendance, setAttendance] = useState({
-    employeeId: "",
-    date: new Date().toISOString().split("T")[0],
-    shift1: "Absent",
-    shift2: "Absent",
-  });
+  const [sites, setSites] = useState([]);
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [records, setRecords] = useState([]);
-  const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [loadingRecords, setLoadingRecords] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [savingRow, setSavingRow] = useState({});
 
-  // Fetch all employees
+  // Load employees + sites
   useEffect(() => {
-    const fetchEmployees = async () => {
-      setLoadingEmployees(true);
+    const load = async () => {
+      setLoading(true);
       try {
-        const res = await axios.get("https://newemployman.onrender.com/api/employees");
-        setEmployees(res.data);
+        const [empRes, siteRes] = await Promise.all([
+          axios.get(`${API_URL}/employees`),
+          axios.get(`${API_URL}/sites`),
+        ]);
+        const empData = (empRes.data || []).map((emp) => ({
+          ...emp,
+          defaultSite: emp.siteId || "",
+        }));
+        setEmployees(empData);
+        setSites(siteRes.data || []);
       } catch (err) {
-        console.error("Error loading employees:", err.message);
+        console.error("Error loading:", err);
       } finally {
-        setLoadingEmployees(false);
+        setLoading(false);
       }
     };
-    fetchEmployees();
+    load();
   }, []);
 
-  // Fetch attendance records when date changes
-  useEffect(() => {
-    if (attendance.date && employees.length > 0) {
-      fetchRecordsForDate(attendance.date);
-    }
-  }, [attendance.date, employees]);
-
-  const fetchRecordsForDate = async (date) => {
-    if (employees.length === 0) return;
-
-    setLoadingRecords(true);
+  // Fetch attendance
+  const fetchRecords = async () => {
+    setLoading(true);
     try {
-      const res = await axios.get("https://newemployman.onrender.com/api/attendance");
-      const filtered = res.data.filter(
-        (rec) => new Date(rec.date).toISOString().split("T")[0] === date
-      );
+      const res = await axios.get(`${API_URL}/attendance`);
+      const list = res.data || [];
+      const normalizedDate = new Date(date);
+      normalizedDate.setUTCHours(0, 0, 0, 0);
+      const day = new Date(date);
+      day.setHours(0, 0, 0, 0);
 
       const merged = employees.map((emp) => {
-        const record = filtered.find((r) => r.employeeId === emp._id);
+        const found = list.find(
+          (x) =>
+            x.employeeId === emp._id &&
+            new Date(x.date).toISOString().split("T")[0] ===
+              normalizedDate.toISOString().split("T")[0]
+        );
+
         return {
+          _id: found?._id || null,
           employeeId: emp._id,
           name: emp.name,
-          shift1: record ? record.shift1 : "Absent",
-          shift2: record ? record.shift2 : "Absent",
+          shift1: found?.shift1 || "Absent",
+          shift2: found?.shift2 || "Absent",
+          advance: found ? (found.advance === 0 ? "" : found.advance) : "",
+          siteId: found?.siteId || emp.siteId?._id || emp.siteId || "",
         };
       });
 
       setRecords(merged);
     } catch (err) {
-      console.error("Error fetching attendance records:", err.message);
+      console.error("Error fetching attendance:", err);
     } finally {
-      setLoadingRecords(false);
+      setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
+  // Fetch when employees/date change
+  useEffect(() => {
+    if (employees.length) fetchRecords();
+  }, [date, employees]);
+
+  // 🟢 Universal save function (upsert)
+  const saveAttendance = async (rec) => {
     try {
-      await axios.post("https://newemployman.onrender.com/api/attendance", attendance);
-      alert("✅ Attendance saved!");
-      fetchRecordsForDate(attendance.date);
+      const normalizedDate = new Date(date);
+      normalizedDate.setUTCHours(0, 0, 0, 0);
+      const payload = {
+        employeeId: rec.employeeId,
+        date: normalizedDate,
+        siteId: rec.siteId,
+        shift1: rec.shift1,
+        shift2: rec.shift2,
+        advance: rec.advance === "" ? 0 : parseFloat(rec.advance),
+      };
+
+      const res = await axios.post(`${API_URL}/attendance`, payload);
+      return res.data;
     } catch (err) {
-      console.error("Error saving attendance:", err.message);
-      alert("Error saving attendance");
-    } finally {
-      setSaving(false);
+      console.error("Error saving:", err.response?.data || err.message);
+      throw err;
     }
   };
 
-  const moveDate = (days) => {
-    const newDate = new Date(attendance.date);
-    newDate.setDate(newDate.getDate() + days);
-    setAttendance({ ...attendance, date: newDate.toISOString().split("T")[0] });
-  };
+  // Toggle shift
+  const changeShift = async (shiftName, rec) => {
+    if (!rec.siteId) return alert("Please select a site first");
 
-  const toggleShift = async (employeeId, shift) => {
-    const rec = records.find((r) => r.employeeId === employeeId);
-    if (!rec) return;
+    const newValue = rec[shiftName] === "Present" ? "Absent" : "Present";
 
-    const next = rec[shift] === "Present" ? "Absent" : "Present";
-    if (!window.confirm(`Are you sure you want to change ${shift} for ${rec.name} to ${next}?`))
-      return;
+    const updated = { ...rec, [shiftName]: newValue };
 
-    setSaving(true);
+    // Update UI instantly
+    setRecords((prev) =>
+      prev.map((r) => (r.employeeId === rec.employeeId ? updated : r))
+    );
+
     try {
-      await axios.post("https://newemployman.onrender.com/api/attendance", {
-        employeeId,
-        date: attendance.date,
-        shift1: shift === "shift1" ? next : rec.shift1,
-        shift2: shift === "shift2" ? next : rec.shift2,
-      });
-
+      const saved = await saveAttendance(updated);
       setRecords((prev) =>
-        prev.map((r) => (r.employeeId === employeeId ? { ...r, [shift]: next } : r))
+        prev.map((r) =>
+          r.employeeId === rec.employeeId ? { ...updated, _id: saved._id } : r
+        )
       );
-    } catch (err) {
-      console.error("Error updating attendance:", err.message);
-    } finally {
-      setSaving(false);
+    } catch {
+      alert("Error saving shift");
     }
   };
 
+  // Save row manually (advance/site updates)
+  const saveRow = async (rec) => {
+    if (!rec.siteId) return alert("Select a site first");
+    setSavingRow((p) => ({ ...p, [rec.employeeId]: true }));
+
+    try {
+      const saved = await saveAttendance(rec);
+      setRecords((prev) =>
+        prev.map((r) =>
+          r.employeeId === rec.employeeId ? { ...rec, _id: saved._id } : r
+        )
+      );
+    } catch {
+      alert("Error saving row");
+    } finally {
+      setSavingRow((p) => ({ ...p, [rec.employeeId]: false }));
+    }
+  };
+
+  // Export PDF
   const exportPDF = () => {
     const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Attendance Records", 14, 22);
+    doc.setFontSize(16);
+    doc.text(`Attendance - ${date}`, 14, 20);
 
-    const tableColumn = ["Employee", "Shift 1", "Shift 2"];
-    const tableRows = records.map((rec) => [rec.name, rec.shift1, rec.shift2]);
+    const rows = records.map((r) => [
+      r.name,
+      r.shift1,
+      r.shift2,
+      r.advance || "",
+      sites.find((s) => s._id === r.siteId)?.name || "",
+    ]);
 
-    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 30 });
-    doc.save(`Attendance_${attendance.date}.pdf`);
+    autoTable(doc, {
+      head: [["Employee", "Shift 1", "Shift 2", "Advance", "Site"]],
+      body: rows,
+      startY: 30,
+    });
+
+    doc.save(`attendance_${date}.pdf`);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4 text-center">Attendance Management</h2>
+  // Date navigation
+  const changeDay = (days) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    setDate(d.toISOString().split("T")[0]);
+  };
 
-        {/* Date Navigation */}
-        <div className="flex justify-between items-center mb-4">
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-64">
+        <ThreeDots color="#3196cc" height={40} width={80} />
+      </div>
+    );
+
+  return (
+    <div className="p-4 max-w-5xl mx-auto">
+      <div className="bg-white p-4 rounded shadow mb-4">
+        <h2 className="text-lg font-semibold mb-2">Attendance</h2>
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => changeDay(-1)}
+              className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
+            >
+              ← Prev
+            </button>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="p-2 border rounded"
+            />
+            <button
+              onClick={() => changeDay(1)}
+              className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
+            >
+              Next →
+            </button>
+          </div>
+
           <button
-            onClick={() => moveDate(-1)}
-            className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
+            onClick={exportPDF}
+            className="px-3 py-2 bg-blue-600 text-white rounded w-full sm:w-auto"
           >
-            ⬅️ Prev
-          </button>
-          <input
-            type="date"
-            value={attendance.date}
-            onChange={(e) => setAttendance({ ...attendance, date: e.target.value })}
-            className="border rounded-md p-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-          <button
-            onClick={() => moveDate(1)}
-            className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
-          >
-            Next ➡️
+            Export PDF
           </button>
         </div>
-
-        {/* Mark Attendance Form */}
-        {loadingEmployees ? (
-          <div className="flex justify-center my-4">
-            <ThreeDot color="#3196cc" size="medium" />
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <select
-              value={attendance.employeeId}
-              onChange={(e) =>
-                setAttendance({ ...attendance, employeeId: e.target.value })
-              }
-              className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="">Select Employee</option>
-              {employees.map((emp) => (
-                <option key={emp._id} value={emp._id}>
-                  {emp.name} ({emp.phone})
-                </option>
-              ))}
-            </select>
-
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="block mb-1 text-sm font-medium">Shift 1</label>
-                <select
-                  value={attendance.shift1}
-                  onChange={(e) =>
-                    setAttendance({ ...attendance, shift1: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                  <option>Present</option>
-                  <option>Absent</option>
-                  <option>Leave</option>
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="block mb-1 text-sm font-medium">Shift 2</label>
-                <select
-                  value={attendance.shift2}
-                  onChange={(e) =>
-                    setAttendance({ ...attendance, shift2: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                  <option>Present</option>
-                  <option>Absent</option>
-                  <option>Leave</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-md font-semibold transition disabled:opacity-50"
-            >
-              {saving ? <ThreeDot color="#fff" size="medium" /> : "Save Attendance"}
-            </button>
-          </form>
-        )}
       </div>
 
-      {/* Attendance Table */}
-      <div className="max-w-2xl mx-auto mt-6 overflow-x-auto">
-        <h3 className="text-lg font-semibold mb-3 text-center">
-          Attendance Records for {attendance.date}
-        </h3>
+      <div className="bg-white p-2 rounded shadow overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-blue-500 text-white">
+            <tr>
+              <th className="p-2 text-left">Sno</th>
+              <th className="p-2 text-left">Employee</th>
+              <th className="p-2 text-left">Site</th>
+              <th className="p-2 text-left">Shift 1</th>
+              <th className="p-2 text-left">Shift 2</th>
+              <th className="p-2 text-left">Advance</th>
+              <th className="p-2 text-left">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((rec, index) => (
+              <tr key={rec.employeeId} className="border-b hover:bg-gray-50">
+                <td className="p-2">{index}</td>
+                <td className="p-2">{rec.name}</td>
+                {/* Site Dropdown */}
+                <td className="p-2">
+                  <select
+                    value={rec.siteId?._id || rec.siteId || ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setRecords((prev) =>
+                        prev.map((r) =>
+                          r.employeeId === rec.employeeId
+                            ? { ...r, siteId: v }
+                            : r
+                        )
+                      );
+                    }}
+                    className="border p-1 rounded"
+                  >
+                    <option value="">Select Site</option>
+                    {sites.map((s) => (
+                      <option key={s._id} value={s._id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
 
-        {loadingRecords ? (
-          <div className="flex justify-center my-4">
-            <ThreeDot color="#3196cc" size="medium" />
-          </div>
-        ) : (
-          <table className="min-w-full bg-white rounded-md shadow-md overflow-hidden">
-            <thead className="bg-blue-500 text-white">
-              <tr>
-                <th className="p-2 text-left">Employee</th>
-                <th className="p-2 text-left">Shift 1</th>
-                <th className="p-2 text-left">Shift 2</th>
+                {/* ✅ FIXED Shift 1 */}
+                <td
+                  className="p-2 cursor-pointer"
+                  onClick={() => changeShift("shift1", rec)}
+                >
+                  <div
+                    className={`inline-block px-3 py-1 rounded ${
+                      rec.shift1 === "Present" ? "bg-green-200" : "bg-red-200"
+                    }`}
+                  >
+                    {rec.shift1}
+                  </div>
+                </td>
+
+                {/* ✅ FIXED Shift 2 */}
+                <td
+                  className="p-2 cursor-pointer"
+                  onClick={() => changeShift("shift2", rec)}
+                >
+                  <div
+                    className={`inline-block px-3 py-1 rounded ${
+                      rec.shift2 === "Present" ? "bg-green-200" : "bg-red-200"
+                    }`}
+                  >
+                    {rec.shift2}
+                  </div>
+                </td>
+
+                {/* Advance */}
+                <td className="p-2">
+                  <input
+                    placeholder="Enter amount"
+                    value={rec.advance || ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setRecords((prev) =>
+                        prev.map((r) =>
+                          r.employeeId === rec.employeeId
+                            ? { ...r, advance: v }
+                            : r
+                        )
+                      );
+                    }}
+                    className="w-24 p-1 border rounded"
+                  />
+                </td>
+
+                {/* Save Button */}
+                <td className="p-2">
+                  <button
+                    onClick={() => saveRow(rec)}
+                    disabled={savingRow[rec.employeeId]}
+                    className="px-3 py-1 bg-blue-600 text-white rounded"
+                  >
+                    {savingRow[rec.employeeId] ? "Saving..." : "Save"}
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {records.length === 0 ? (
-                <tr>
-                  <td colSpan="3" className="text-center p-4 text-gray-500">
-                    No records found
-                  </td>
-                </tr>
-              ) : (
-                records.map((rec) => (
-                  <tr key={rec.employeeId} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{rec.name}</td>
-                    <td
-                      className={`p-2 cursor-pointer ${
-                        rec.shift1 === "Present" ? "bg-green-200" : "bg-red-200"
-                      }`}
-                      onClick={() => toggleShift(rec.employeeId, "shift1")}
-                    >
-                      {rec.shift1}
-                    </td>
-                    <td
-                      className={`p-2 cursor-pointer ${
-                        rec.shift2 === "Present" ? "bg-green-200" : "bg-red-200"
-                      }`}
-                      onClick={() => toggleShift(rec.employeeId, "shift2")}
-                    >
-                      {rec.shift2}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      <center>
-        <button
-          onClick={exportPDF}
-          className="m-3 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition"
-        >
-          Download PDF
-        </button>
-      </center>
     </div>
   );
 }
