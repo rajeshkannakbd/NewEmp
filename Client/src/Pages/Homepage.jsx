@@ -14,8 +14,8 @@ export default function HomePage() {
     const fetchData = async () => {
       try {
         const [empRes, siteRes] = await Promise.all([
-          axios.get("http://localhost:3000/api/employees"),
-          axios.get("http://localhost:3000/api/sites"),
+          axios.get("https://newemployman.onrender.com/api/employees"),
+          axios.get("https://newemployman.onrender.com/api/sites"),
         ]);
         setEmployees(empRes.data);
         
@@ -38,7 +38,7 @@ export default function HomePage() {
     if (!newSite.name) return alert("Please enter site name");
     setAdding(true);
     try {
-      const res = await axios.post("http://localhost:3000/api/sites", newSite);
+      const res = await axios.post("https://newemployman.onrender.com/api/sites", newSite);
       setSites([res.data, ...sites]);
       setNewSite({ name: "", location: "" });
     } catch (err) {
@@ -52,7 +52,7 @@ export default function HomePage() {
   const handleDeleteSite = async (id) => {
     if (!window.confirm("Delete this site?")) return;
     try {
-      await axios.delete(`http://localhost:3000/api/sites/${id}`);
+      await axios.delete(`https://newemployman.onrender.com/api/sites/${id}`);
       setSites(sites.filter((s) => s._id !== id));
     } catch (err) {
       console.error("Error deleting site:", err.message);
