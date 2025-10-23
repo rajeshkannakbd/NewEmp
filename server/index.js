@@ -4,6 +4,7 @@ const cors = require("cors");
 const path = require("path");
 require("dotenv").config();
 
+// Routers
 const employeesRouter = require("./Routes/employeeRoutes");
 const sitesRouter = require("./Routes/siteRoute");
 const attendanceRouter = require("./Routes/attendanceRoutes");
@@ -25,17 +26,20 @@ app.use("/api/sites", sitesRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/salary", salaryRouter);
 
-// Serve React build
-const __dirname1 = path.resolve();
-app.use(express.static(path.join(__dirname1, "/client/build")));
+// Health check
+app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-// ✅ Catch-all for client-side routing
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname1, "/client/build", "index.html"));
-});
+// Serve React static files (for production)
+if (process.env.NODE_ENV === "production") {
+  const clientBuildPath = path.join(__dirname, "../client/build");
+  app.use(express.static(clientBuildPath));
 
-// Simple health check
-app.get("/health", (req, res) => res.send("Employee management API is running"));
+  // Catch-all route to serve index.html for React Router
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(clientBuildPath, "index.html"));
+  });
+}
 
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
