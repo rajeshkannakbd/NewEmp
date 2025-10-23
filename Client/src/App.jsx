@@ -14,12 +14,9 @@ export default function App() {
           <h1 className="text-xl md:text-2xl font-bold text-center">
             <span className="text-3xl font-semibold">VM</span> Constructions
           </h1>
-          <p className="text-center text-sm md:text-base">
-            Two-Shift Attendance & Salary System
-          </p>
 
           {/* Navigation */}
-          <nav className="mt-2 flex flex-col md:flex-row justify-center gap-2 md:gap-4 text-sm md:text-base">
+          <nav className="m-2 mt-4 flex flex-row md:flex-row justify-center gap-2 md:gap-4 text-sm md:text-base">
             <NavLink
               to="/"
               end

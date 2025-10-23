@@ -197,6 +197,9 @@ export default function EmployeePage() {
                     <div className="text-sm text-gray-500">
                       {emp.role} • {emp.phone}
                     </div>
+                    <div className="text-sm text-gray-500">
+                      Shift Rate :<span>{emp.shiftRate}</span>
+                    </div>
                     <div className="text-xs text-gray-500">
                       Site:{" "}
                       {emp.siteId?.name ||

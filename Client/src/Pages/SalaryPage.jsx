@@ -134,12 +134,14 @@ export default function SalaryPage() {
               </option>
             ))}
           </select>
+          <label className="block text-gray-600 text-sm mb-1">Start Date</label>
           <input
             type="date"
             value={form.weekStart}
             onChange={(e) => setForm({ ...form, weekStart: e.target.value })}
             className="p-2 border rounded"
           />
+          <label className="block text-gray-600 text-sm mb-1">End Date</label>
           <input
             type="date"
             value={form.weekEnd}
