@@ -31,7 +31,7 @@ app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
 // Serve React static files (for production)
 if (process.env.NODE_ENV === "production") {
-  const clientBuildPath = path.join(__dirname, "../client/build");
+  const clientBuildPath = path.join(__dirname, "client/build");
   app.use(express.static(clientBuildPath));
 
   // Catch-all route to serve index.html for React Router
