@@ -26,20 +26,6 @@ app.use("/api/sites", sitesRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/salary", salaryRouter);
 
-// Health check
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
-
-// Serve React static files (for production)
-if (process.env.NODE_ENV === "production") {
-  const clientBuildPath = path.join(__dirname, "client/build");
-  app.use(express.static(clientBuildPath));
-
-  // Catch-all route to serve index.html for React Router
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(clientBuildPath, "index.html"));
-  });
-}
-
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
