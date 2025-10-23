@@ -7,4 +7,7 @@ const siteSchema = new mongoose.Schema({
   startDate: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("Site", siteSchema);
+// ✅ Prevent OverwriteModelError
+module.exports =
+  mongoose.models.Site ||
+  mongoose.model("Site", siteSchema);

@@ -7,7 +7,10 @@ const salarySchema = new mongoose.Schema({
   totalShifts: Number,
   totalAdvance: { type: Number, default: 0 },
   totalSalary: Number,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("Salary", salarySchema);
+// ✅ Prevent OverwriteModelError
+module.exports =
+  mongoose.models.Salary ||
+  mongoose.model("Salary", salarySchema);

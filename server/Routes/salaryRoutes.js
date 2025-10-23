@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const Attendance = require("../models/Attendance");
-const Employee = require("../models/Employee");
-const Salary = require("../models/Salary");
+const Attendance = require("../Models/Attendance");
+const Employee = require("../Models/Employee");
+const Salary = require("../Models/Salary");
 
 // Calculate weekly salary
 router.post("/calculate", async (req, res) => {
