@@ -7,6 +7,7 @@ const attendanceSchema = new mongoose.Schema({
   shift1: { type: String, default: "Absent" },
   shift2: { type: String, default: "Absent" },
   advance: { type: Number, default: 0 },
+  overtime: { type: Boolean, default: false },
 });
 
 // Ensure unique per employee + date + site

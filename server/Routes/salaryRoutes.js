@@ -3,34 +3,50 @@ const router = express.Router();
 const Attendance = require("../Models/Attendance");
 const Employee = require("../Models/Employee");
 const Salary = require("../Models/Salary");
+const { protect } = require("../middleware/authMiddleware");
 
+// Calculate weekly salary
 // Calculate weekly salary
 router.post("/calculate", async (req, res) => {
   try {
     const { employeeId, weekStart, weekEnd } = req.body;
-    if (!employeeId || !weekStart || !weekEnd) return res.status(400).json({ error: "employeeId, weekStart, weekEnd required" });
+
+    if (!employeeId || !weekStart || !weekEnd) {
+      return res.status(400).json({
+        error: "employeeId, weekStart, weekEnd required",
+      });
+    }
 
     const emp = await Employee.findById(employeeId);
     if (!emp) return res.status(404).json({ error: "Employee not found" });
 
-    const start = new Date(new Date(weekStart).setHours(0,0,0,0));
-    const end = new Date(new Date(weekEnd).setHours(23,59,59,999));
+    const start = new Date(new Date(weekStart).setHours(0, 0, 0, 0));
+    const end = new Date(new Date(weekEnd).setHours(23, 59, 59, 999));
 
     const attendanceRecords = await Attendance.find({
       employeeId,
-      date: { $gte: start, $lte: end }
+      date: { $gte: start, $lte: end },
     });
 
     let totalShifts = 0;
     let totalAdvance = 0;
-    attendanceRecords.forEach(r => {
+    let overtimePay = 0; // ✅ NEW
+
+    attendanceRecords.forEach((r) => {
       const s1 = (r.shift1 || "").toLowerCase().trim() === "present" ? 1 : 0;
+
       const s2 = (r.shift2 || "").toLowerCase().trim() === "present" ? 0.5 : 0;
+
       totalShifts += s1 + s2;
       totalAdvance += r.advance || 0;
+
+      // ✅ ADD OVERTIME LOGIC
+      if (r.overtime) {
+        overtimePay += emp.shiftRate / 2;
+      }
     });
 
-    const gross = totalShifts * emp.shiftRate;
+    const gross = totalShifts * emp.shiftRate + overtimePay;
     const net = gross - totalAdvance;
 
     const salary = new Salary({
@@ -39,7 +55,8 @@ router.post("/calculate", async (req, res) => {
       weekEnd: end,
       totalShifts,
       totalAdvance,
-      totalSalary: net
+      totalSalary: net,
+      overtimePay, // optional but recommended
     });
 
     await salary.save();
@@ -52,13 +69,22 @@ router.post("/calculate", async (req, res) => {
 
 // Get salary history all
 router.get("/", async (req, res) => {
-  const list = await Salary.find().populate("employeeId", "name phone").sort({ weekStart: -1 });
+  const list = await Salary.find()
+    .populate("employeeId", "name phone")
+    .sort({ weekStart: -1 });
+  res.json(list);
+});
+
+router.get("/my", protect, async (req, res) => {
+  const list = await Salary.find({ employeeId: req.user.id });
   res.json(list);
 });
 
 // Get by employee
 router.get("/:employeeId", async (req, res) => {
-  const list = await Salary.find({ employeeId: req.params.employeeId }).populate("employeeId", "name phone").sort({ weekStart: -1 });
+  const list = await Salary.find({ employeeId: req.params.employeeId })
+    .populate("employeeId", "name phone")
+    .sort({ weekStart: -1 });
   res.json(list);
 });
 

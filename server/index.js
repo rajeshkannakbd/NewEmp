@@ -9,6 +9,7 @@ const employeesRouter = require("./Routes/employeeRoutes");
 const sitesRouter = require("./Routes/siteRoute");
 const attendanceRouter = require("./Routes/attendanceRoutes");
 const salaryRouter = require("./Routes/salaryRoutes");
+const authRouter = require("./Routes/authRoutes");
 
 const app = express();
 app.use(cors());
@@ -25,6 +26,7 @@ app.use("/api/employees", employeesRouter);
 app.use("/api/sites", sitesRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/salary", salaryRouter);
+app.use("/api/auth", authRouter);
 
 // Start server
 const PORT = process.env.PORT || 3000;

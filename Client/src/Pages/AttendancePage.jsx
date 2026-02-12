@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "../axiosConfig";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { ThreeDots } from "react-loader-spinner";
@@ -53,7 +53,7 @@ export default function AttendancePage() {
           (x) =>
             x.employeeId === emp._id &&
             new Date(x.date).toISOString().split("T")[0] ===
-              normalizedDate.toISOString().split("T")[0]
+              normalizedDate.toISOString().split("T")[0],
         );
 
         return {
@@ -64,6 +64,7 @@ export default function AttendancePage() {
           shift2: found?.shift2 || "Absent",
           advance: found ? (found.advance === 0 ? "" : found.advance) : "",
           siteId: found?.siteId || emp.siteId?._id || emp.siteId || "",
+          overtime: found?.overtime || false, // ✅ ADD THIS
         };
       });
 
@@ -92,6 +93,7 @@ export default function AttendancePage() {
         shift1: rec.shift1,
         shift2: rec.shift2,
         advance: rec.advance === "" ? 0 : parseFloat(rec.advance),
+        overtime: rec.overtime || false,
       };
 
       const res = await axios.post(`${API_URL}/attendance`, payload);
@@ -112,15 +114,15 @@ export default function AttendancePage() {
 
     // Update UI instantly
     setRecords((prev) =>
-      prev.map((r) => (r.employeeId === rec.employeeId ? updated : r))
+      prev.map((r) => (r.employeeId === rec.employeeId ? updated : r)),
     );
 
     try {
       const saved = await saveAttendance(updated);
       setRecords((prev) =>
         prev.map((r) =>
-          r.employeeId === rec.employeeId ? { ...updated, _id: saved._id } : r
-        )
+          r.employeeId === rec.employeeId ? { ...updated, _id: saved._id } : r,
+        ),
       );
     } catch {
       alert("Error saving shift");
@@ -136,8 +138,8 @@ export default function AttendancePage() {
       const saved = await saveAttendance(rec);
       setRecords((prev) =>
         prev.map((r) =>
-          r.employeeId === rec.employeeId ? { ...rec, _id: saved._id } : r
-        )
+          r.employeeId === rec.employeeId ? { ...rec, _id: saved._id } : r,
+        ),
       );
     } catch {
       alert("Error saving row");
@@ -184,72 +186,76 @@ export default function AttendancePage() {
     );
 
   return (
-    <div className="p-4 max-w-5xl mx-auto">
-      <div className="bg-white p-4 rounded shadow mb-4">
-        <h2 className="text-lg font-semibold mb-2">Attendance</h2>
-        <div className="flex flex-col sm:flex-row items-center gap-2">
-          <div className="flex items-center gap-2">
+    <div className="p-3 md:p-6 max-w-6xl mx-auto space-y-4">
+      {/* Header Card */}
+      <div className="bg-white p-4 rounded-xl shadow-md">
+        <h2 className="text-lg md:text-xl font-semibold mb-3">Attendance</h2>
+
+        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          {/* Date Controls */}
+          <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => changeDay(-1)}
-              className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
+              className="px-3 py-2 bg-gray-200 rounded-lg active:scale-95"
             >
-              ← Prev
+              ←
             </button>
+
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="p-2 border rounded"
+              className="p-2 border rounded-lg w-full"
             />
+
             <button
               onClick={() => changeDay(1)}
-              className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
+              className="px-3 py-2 bg-gray-200 rounded-lg active:scale-95"
             >
-              Next →
+              →
             </button>
           </div>
 
           <button
             onClick={exportPDF}
-            className="px-3 py-2 bg-blue-600 text-white rounded w-full sm:w-auto"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
           >
             Export PDF
           </button>
         </div>
       </div>
 
-      <div className="bg-white p-2 rounded shadow overflow-x-auto">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white rounded-xl shadow overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead className="bg-blue-500 text-white">
+          <thead className="bg-blue-600 text-white">
             <tr>
-              <th className="p-2 text-left">Sno</th>
-              <th className="p-2 text-left">Employee</th>
-              <th className="p-2 text-left">Site</th>
-              <th className="p-2 text-left">Shift 1</th>
-              <th className="p-2 text-left">Shift 2</th>
-              <th className="p-2 text-left">Advance</th>
-              <th className="p-2 text-left">Action</th>
+              <th className="p-3 text-left">Employee</th>
+              <th className="p-3 text-left">Site</th>
+              <th className="p-3 text-left">Shift 1</th>
+              <th className="p-3 text-left">Shift 2</th>
+              <th className="p-3 text-left">Advance</th>
+              <th className="p-3 text-left">Overtime</th>
+              <th className="p-3 text-left">Action</th>
             </tr>
           </thead>
           <tbody>
-            {records.map((rec, index) => (
-              <tr key={rec.employeeId} className="border-b hover:bg-gray-50">
-                <td className="p-2">{index}</td>
-                <td className="p-2">{rec.name}</td>
-                {/* Site Dropdown */}
-                <td className="p-2">
+            {records.map((rec) => (
+              <tr key={rec.employeeId} className="border-b">
+                <td className="p-3">{rec.name}</td>
+
+                <td className="p-3">
                   <select
-                    value={rec.siteId?._id || rec.siteId || ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    value={rec.siteId || ""}
+                    onChange={(e) =>
                       setRecords((prev) =>
                         prev.map((r) =>
                           r.employeeId === rec.employeeId
-                            ? { ...r, siteId: v }
-                            : r
-                        )
-                      );
-                    }}
+                            ? { ...r, siteId: e.target.value }
+                            : r,
+                        ),
+                      )
+                    }
                     className="border p-1 rounded"
                   >
                     <option value="">Select Site</option>
@@ -261,67 +267,166 @@ export default function AttendancePage() {
                   </select>
                 </td>
 
-                {/* ✅ FIXED Shift 1 */}
                 <td
-                  className="p-2 cursor-pointer"
+                  className="p-3 cursor-pointer"
                   onClick={() => changeShift("shift1", rec)}
                 >
-                  <div
-                    className={`inline-block px-3 py-1 rounded ${
+                  <span
+                    className={`px-3 py-1 rounded-lg ${
                       rec.shift1 === "Present" ? "bg-green-200" : "bg-red-200"
                     }`}
                   >
                     {rec.shift1}
-                  </div>
+                  </span>
                 </td>
 
-                {/* ✅ FIXED Shift 2 */}
                 <td
-                  className="p-2 cursor-pointer"
+                  className="p-3 cursor-pointer"
                   onClick={() => changeShift("shift2", rec)}
                 >
-                  <div
-                    className={`inline-block px-3 py-1 rounded ${
+                  <span
+                    className={`px-3 py-1 rounded-lg ${
                       rec.shift2 === "Present" ? "bg-green-200" : "bg-red-200"
                     }`}
                   >
                     {rec.shift2}
-                  </div>
+                  </span>
                 </td>
 
-                {/* Advance */}
-                <td className="p-2">
+                <td className="p-3">
                   <input
-                    placeholder="Enter amount"
                     value={rec.advance || ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    onChange={(e) =>
                       setRecords((prev) =>
                         prev.map((r) =>
                           r.employeeId === rec.employeeId
-                            ? { ...r, advance: v }
-                            : r
-                        )
-                      );
-                    }}
-                    className="w-24 p-1 border rounded"
+                            ? { ...r, advance: e.target.value }
+                            : r,
+                        ),
+                      )
+                    }
+                    className="w-20 border p-1 rounded"
+                  />
+                </td>
+                <td className="p-3">
+                  <input
+                    type="checkbox"
+                    checked={rec.overtime || false}
+                    onChange={(e) =>
+                      setRecords((prev) =>
+                        prev.map((r) =>
+                          r.employeeId === rec.employeeId
+                            ? { ...r, overtime: e.target.checked }
+                            : r,
+                        ),
+                      )
+                    }
                   />
                 </td>
 
-                {/* Save Button */}
-                <td className="p-2">
+                <td className="p-3">
                   <button
                     onClick={() => saveRow(rec)}
-                    disabled={savingRow[rec.employeeId]}
-                    className="px-3 py-1 bg-blue-600 text-white rounded"
+                    className="bg-blue-600 text-white px-3 py-1 rounded"
                   >
-                    {savingRow[rec.employeeId] ? "Saving..." : "Save"}
+                    Save
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* 📱 Mobile Card Layout */}
+      <div className="md:hidden space-y-3">
+        {records.map((rec) => (
+          <div
+            key={rec.employeeId}
+            className="bg-white p-4 rounded-xl shadow-md space-y-3"
+          >
+            <div className="font-semibold text-lg">{rec.name}</div>
+
+            <select
+              value={rec.siteId || ""}
+              onChange={(e) =>
+                setRecords((prev) =>
+                  prev.map((r) =>
+                    r.employeeId === rec.employeeId
+                      ? { ...r, siteId: e.target.value }
+                      : r,
+                  ),
+                )
+              }
+              className="w-full border p-2 rounded-lg"
+            >
+              <option value="">Select Site</option>
+              {sites.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex justify-between gap-2">
+              <button
+                onClick={() => changeShift("shift1", rec)}
+                className={`flex-1 py-2 rounded-lg ${
+                  rec.shift1 === "Present" ? "bg-green-300" : "bg-red-300"
+                }`}
+              >
+                Shift 1: {rec.shift1}
+              </button>
+
+              <button
+                onClick={() => changeShift("shift2", rec)}
+                className={`flex-1 py-2 rounded-lg ${
+                  rec.shift2 === "Present" ? "bg-green-300" : "bg-red-300"
+                }`}
+              >
+                Shift 2: {rec.shift2}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={rec.overtime || false}
+                onChange={(e) =>
+                  setRecords((prev) =>
+                    prev.map((r) =>
+                      r.employeeId === rec.employeeId
+                        ? { ...r, overtime: e.target.checked }
+                        : r,
+                    ),
+                  )
+                }
+              />
+              <span>Overtime</span>
+            </div>
+
+            <input
+              placeholder="Advance"
+              value={rec.advance || ""}
+              onChange={(e) =>
+                setRecords((prev) =>
+                  prev.map((r) =>
+                    r.employeeId === rec.employeeId
+                      ? { ...r, advance: e.target.value }
+                      : r,
+                  ),
+                )
+              }
+              className="w-full border p-2 rounded-lg"
+            />
+
+            <button
+              onClick={() => saveRow(rec)}
+              className="w-full bg-blue-600 text-white py-2 rounded-lg"
+            >
+              Save
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "../axiosConfig";
 import { FaUserAlt, FaUserTie, FaUserClock, FaBuilding } from "react-icons/fa";
 
 export default function HomePage() {

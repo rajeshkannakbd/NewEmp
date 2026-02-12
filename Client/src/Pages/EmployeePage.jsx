@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "../axiosConfig";
 import { ThreeDots } from "react-loader-spinner";
 import { API_URL } from "../config";
 
