@@ -51,11 +51,11 @@ export default function LoginPage() {
   };
 
 return (
-  <div className="h-screen w-screen flex items-center justify-center bg-gray-200 overflow-hidden">
-    <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-6">
+  <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+    <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-6 sm:p-8">
 
       {/* Logo */}
-      <div className="flex justify-center mb-5">
+      <div className="flex justify-center mb-6">
         <img
           src="https://res.cloudinary.com/dh9fmwhsk/image/upload/v1770973047/ChatGPT_Image_Feb_13_2026_11_17_24_AM_pjddom.png"
           alt="VM Construction Logo"
@@ -64,7 +64,7 @@ return (
       </div>
 
       {/* Company Name */}
-      <h1 className="text-2xl font-bold text-center text-gray-800 tracking-wide">
+      <h1 className="text-2xl font-bold text-center text-gray-800">
         VM Constructions
       </h1>
 
@@ -115,5 +115,6 @@ return (
     </div>
   </div>
 );
+
 
 }
