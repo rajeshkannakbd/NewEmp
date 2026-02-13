@@ -47,9 +47,9 @@ function AppContent() {
             <span className="text-3xl font-semibold">VM</span> Constructions
           </h1>
 
-          <nav className="m-2 mt-4 flex justify-center gap-4 text-sm md:text-base">
+          <nav className="mt-4 flex flex-col md:flex-row md:justify-center gap-3 text-sm md:text-base items-center">
             {role === "Manager" && (
-              <>
+              <div className="flex flex-wrap justify-center gap-3 w-full md:w-auto">
                 <NavLink
                   to="/"
                   end
@@ -94,7 +94,7 @@ function AppContent() {
                 >
                   Salary
                 </NavLink>
-              </>
+              </div>
             )}
 
             {role === "Worker" && (
@@ -112,7 +112,7 @@ function AppContent() {
 
             <button
               onClick={logout}
-              className="ml-4 bg-red-500 px-3 py-1 rounded hover:bg-red-600"
+              className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"
             >
               Logout
             </button>

@@ -8,32 +8,38 @@ router.post("/login", async (req, res) => {
   try {
     const { phone } = req.body;
 
+    if (!phone) {
+      return res.status(400).json({ error: "Phone required" });
+    }
+
     const user = await Employee.findOne({ phone });
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
     const token = jwt.sign(
-      { id: user._id, accessRole: user.accessRole },
+      { id: user._id, accessRole: user.accessRole || "Worker" },
       process.env.JWT_SECRET || "secretkey",
       { expiresIn: "7d" },
     );
 
     res.json({
       token,
-      accessRole: user.accessRole,
-      jobRole: user.role, // this is fitter/helper
-      name: user.name,
+      accessRole: user.accessRole || "Worker",
     });
-
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 router.get("/me", protect, async (req, res) => {
   try {
-    const user = await Employee.findById(req.user.id).populate("siteId", "name");
+    const user = await Employee.findById(req.user.id).populate(
+      "siteId",
+      "name",
+    );
 
     res.json(user);
   } catch (err) {

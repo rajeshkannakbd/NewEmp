@@ -5,15 +5,36 @@ const Employee = require("../Models/Employee");
 // Create
 router.post("/", async (req, res) => {
   try {
-    console.log("Incoming Employee POST:", req.body); // 👈 Add this
+    let { phone } = req.body;
+
+    // Remove spaces
+    phone = phone.replace(/\s+/g, "");
+
+    // Remove + if user typed it
+    if (phone.startsWith("+")) {
+      phone = phone.substring(1);
+    }
+
+    // If phone is 10 digits → add 91
+    if (phone.length === 10) {
+      phone = "91" + phone;
+    }
+
+    // Replace phone in request body
+    req.body.phone = phone;
+
+    console.log("Formatted Phone:", phone);
+
     const emp = new Employee(req.body);
     await emp.save();
+
     res.status(201).json(emp);
   } catch (err) {
     console.error("Error creating employee:", err);
     res.status(400).json({ error: err.message });
   }
 });
+
 // Read all
 router.get("/", async (req, res) => {
   try {
