@@ -5,9 +5,9 @@ const jwt = require("jsonwebtoken");
 const { protect } = require("../middleware/authMiddleware");
 
 router.post("/login", async (req, res) => {
+  
   try {
     const { phone } = req.body;
-
     if (!phone) {
       return res.status(400).json({ error: "Phone required" });
     }

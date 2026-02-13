@@ -1,6 +1,6 @@
 {
   "appId": "com.vmconstructions.attendance",
-  "appName": "AttendanceApp",
+  "appName": "VM Constructions",
   "webDir": "dist",
   "server": {
     "url": "https://newemp-3dgd.onrender.com",
