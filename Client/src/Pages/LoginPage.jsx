@@ -57,7 +57,7 @@ export default function LoginPage() {
         {/* Logo Placeholder */}
         <div className="flex justify-center mb-4">
           <img
-            src="/src/assets/icon.png"  // 🔥 Add your logo path here later
+            src="https://res.cloudinary.com/dh9fmwhsk/image/upload/v1770973047/ChatGPT_Image_Feb_13_2026_11_17_24_AM_pjddom.png"  // 🔥 Add your logo path here later
             alt="VM Construction Logo"
             className="h-20 w-20 object-contain"
           />
