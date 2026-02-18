@@ -18,6 +18,7 @@ const employeeSchema = new mongoose.Schema({
   joinDate: { type: Date, default: Date.now },
   status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
   siteId: { type: mongoose.Schema.Types.ObjectId, ref: "Site", default: null },
+  password: { type: String },
 });
 
 // ✅ Prevent OverwriteModelError

@@ -45,9 +45,9 @@ export default function SalaryPage() {
     try {
       const payload = {
         employeeId: form.employeeId,
-        weekStart: new Date(form.weekStart).toISOString(),
-        weekEnd: new Date(form.weekEnd).toISOString(),
+        selectedDate: new Date().toISOString(),
       };
+
       console.log("Payload for salary calculation:", payload);
       const res = await axios.post(`${API_URL}/salary/calculate`, payload);
       setSalaryData((prev) => [res.data, ...prev]);
@@ -110,7 +110,7 @@ export default function SalaryPage() {
   };
   const totalAllSalary = salaryData.reduce(
     (sum, s) => sum + (s.totalSalary || 0),
-    0
+    0,
   );
 
   return (
@@ -205,18 +205,19 @@ export default function SalaryPage() {
               </table>
             </div>
             <center>
-            <div className="flex-col justify-center mt-4">
-              <p className="text-lg font-semibold">
-                Total of all salaries:{" "}
-                <span className="text-green-600">{totalAllSalary}</span>
-              </p>
-              <button
-                onClick={exportPDF}
-                className="px-4 py-2 bg-blue-600 text-white rounded"
-              >
-                {pdfLoading ? "Preparing..." : "Export PDF"}
-              </button>
-            </div></center>
+              <div className="flex-col justify-center mt-4">
+                <p className="text-lg font-semibold">
+                  Total of all salaries:{" "}
+                  <span className="text-green-600">{totalAllSalary}</span>
+                </p>
+                <button
+                  onClick={exportPDF}
+                  className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                  {pdfLoading ? "Preparing..." : "Export PDF"}
+                </button>
+              </div>
+            </center>
           </>
         )}
       </div>

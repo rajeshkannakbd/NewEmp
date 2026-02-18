@@ -9,41 +9,50 @@ const { protect } = require("../middleware/authMiddleware");
 // Calculate weekly salary
 router.post("/calculate", async (req, res) => {
   try {
-    const { employeeId, weekStart, weekEnd } = req.body;
+    const { employeeId, selectedDate } = req.body;
 
-    if (!employeeId || !weekStart || !weekEnd) {
-      return res.status(400).json({
-        error: "employeeId, weekStart, weekEnd required",
-      });
+    if (!employeeId || !selectedDate) {
+      return res.status(400).json({ error: "employeeId and selectedDate required" });
     }
 
     const emp = await Employee.findById(employeeId);
     if (!emp) return res.status(404).json({ error: "Employee not found" });
 
-    const start = new Date(new Date(weekStart).setHours(0, 0, 0, 0));
-    const end = new Date(new Date(weekEnd).setHours(23, 59, 59, 999));
+    const date = new Date(selectedDate);
+
+    // 🟢 Find Sunday (start of week)
+    const day = date.getDay(); // 0 = Sunday
+    const diffToSunday = day; 
+
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() - diffToSunday);
+    weekStart.setHours(0, 0, 0, 0);
+
+    // 🔵 Find Saturday (end of week)
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
 
     const attendanceRecords = await Attendance.find({
       employeeId,
-      date: { $gte: start, $lte: end },
+      date: { $gte: weekStart, $lte: weekEnd }
     });
 
     let totalShifts = 0;
     let totalAdvance = 0;
-    let overtimePay = 0; // ✅ NEW
+    let overtimePay = 0;
 
-    attendanceRecords.forEach((r) => {
-      const s1 = (r.shift1 || "").toLowerCase().trim() === "present" ? 1 : 0;
-
-      const s2 = (r.shift2 || "").toLowerCase().trim() === "present" ? 0.5 : 0;
+    attendanceRecords.forEach(r => {
+      const s1 = r.shift1 === "Present" ? 1 : 0;
+      const s2 = r.shift2 === "Present" ? 0.5 : 0;
 
       totalShifts += s1 + s2;
-      totalAdvance += r.advance || 0;
 
-      // ✅ ADD OVERTIME LOGIC
       if (r.overtime) {
         overtimePay += emp.shiftRate / 2;
       }
+
+      totalAdvance += r.advance || 0;
     });
 
     const gross = totalShifts * emp.shiftRate + overtimePay;
@@ -51,21 +60,23 @@ router.post("/calculate", async (req, res) => {
 
     const salary = new Salary({
       employeeId,
-      weekStart: start,
-      weekEnd: end,
+      weekStart,
+      weekEnd,
       totalShifts,
       totalAdvance,
-      totalSalary: net,
-      overtimePay, // optional but recommended
+      totalSalary: net
     });
 
     await salary.save();
+
     res.json(salary);
+
   } catch (err) {
     console.error(err);
     res.status(400).json({ error: err.message });
   }
 });
+
 
 // Get salary history all
 router.get("/", async (req, res) => {
